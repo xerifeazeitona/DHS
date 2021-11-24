@@ -1,0 +1,20 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+    - name: Create automation user
+      user: name=automation
+
+    - name: Copy user public key to authorized hosts
+      authorized_key:
+        user: automation
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+    - name: Add user to sudoers
+      lineinfile:
+        path: /etc/sudoers.d/10-automation_user
+        line: 'automation ALL=(ALL) NOPASSWD: ALL'
+        create: yes
+        validate: visudo -cf %s

@@ -1,0 +1,12 @@
+---
+- name: Configure Docker
+  include: docker-config.yml
+
+- name: Configure Traefik
+  include: traefik-config.yml
+
+- name: Configure Authelia
+  include: authelia-config.yml
+
+- name: Configure Compose
+  include: compose-config.yml

@@ -1,0 +1,27 @@
+---
+- name: Create user
+  ansible.builtin.user:
+    name: "{{ user_name }}"
+    shell: /bin/bash
+    state: present
+    password: "{{ user_pass }}"
+    update_password: on_create
+    groups: "{{ user_groups }}"
+    append: yes
+    generate_ssh_key: true
+    ssh_key_bits: 4096
+
+- name: Copy tmux configuration
+  ansible.builtin.copy:
+    src: files/.tmux.conf
+    dest: "/home/{{ user_name }}/.tmux.conf"
+    owner: "{{ user_name }}"
+    group: "{{ user_name }}"
+    mode: '0644'
+
+- name: Add xclip aliases to .bashrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: |
+      alias xcopy='xclip -i -r -sel p -f | xclip -i -r -sel c'
+      alias xpaste='xclip -sel c -o'

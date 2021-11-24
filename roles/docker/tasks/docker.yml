@@ -1,0 +1,36 @@
+---
+- name: Ensure older versions of Docker are not installed
+  ansible.builtin.dnf:
+    name:
+      - docker
+      - docker-common
+      - docker-engine
+    state: absent
+
+- name: Add Docker GPG key
+  ansible.builtin.rpm_key:
+    key: "{{ docker_gpg_key }}"
+    state: present
+
+- name: Add Docker repo
+  ansible.builtin.get_url:
+    url: "{{ docker_repo }}"
+    dest: /etc/yum.repos.d/docker-ce.repo
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install Docker Engine
+  ansible.builtin.dnf:
+    name:
+      - container-selinux
+      - containerd.io
+      - docker-ce
+      - docker-ce-cli
+    state: present
+
+- name: Ensure Docker is started and enabled at boot
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes

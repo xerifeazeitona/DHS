@@ -1,0 +1,56 @@
+---
+# The contents of this file will override whatever is defined in the defaults.
+# If you want to use any kind of web based source control like GitHub, make sure to encrypt this file with ansible-vault encrypt main.yml or your credentials will be public.
+
+## External drive configuration
+#use_external_drive: true
+#external_drive_path: /mnt/storage
+#external_drive_uuid: 5241bbae-b673-422b-ae79-522feb59c2c1
+#external_drive_fstype: xfs
+#
+## Docker configuration
+#docker_user: your_user
+#docker_pass: "{{ 'passwordgoeshere' | password_hash('sha512') }}"
+#
+## Environment variables
+#timezone: America/Edmonton
+#domain_name: your-domain.duckdns.org
+#email: notification-email@example.com
+#
+## Authelia configuration
+#authelia_db_name: login_db
+#authelia_db_username: login_db_user
+#authelia_user_name: login_db_user
+#authelia_user_displayname: Authelia User
+#authelia_user_password_hash: "$argon2id$v=19$m=65536,t=1,p=8$WkxEVWNlQitXSXIrSXVsZw$fXV5jfGThJYXyEErHTJDSdwfoqkXqSKJ2EhU2JRGoZA"
+#authelia_user_email: authelia.t5mpv@aleeas.com
+#
+## Compose file
+#duckdns_domain: your-domain
+#traefik_subdomain_name: dashboard
+#authelia_subdomain_name: login
+#plex_subdomain_name: pms
+#nextcloud_subdomain_name: nc
+#unifi_controller_subdomain_name: unifi
+#
+#media_folder_path: /mnt/storage/media
+#plex_media_folders:
+#  - tvshows
+#  - movies
+#  - music
+#  - musicals
+#
+## Secrets
+#duckdns_token: your_duckdns_token
+#authelia_jwt_secret: asndfopw24sadfjhLKJLKJ987jhkldsf
+#authelia_mysql_database: authelia_database
+#authelia_mysql_root_password: vnsadfKLJNASduinKLJ34MNWL4556
+#authelia_mysql_user: authelia_user
+#authelia_session_redis_password: fgdsh76lkjopuiy675JIjklKLJH32
+#authelia_session_secret: sdklf967jgDSFGF678DSGertnkmldf567g
+#authelia_storage_mysql_password: sdkxcjhlMANESwsef43MN234
+#nextcloud_db_database: nextcloud_database
+#nextcloud_db_root_password: epx345sdfghsfdgh6u5HGDFCV
+#nextcloud_db_user: nextcloud_user
+#nextcloud_db_user_password: HGFDGERT44dSDFG43drfs
+#nextcloud_redis_password: sdlfk2345NOENTROPY230asdfmn

@@ -1,0 +1,30 @@
+---
+- name: Ensure external storage drive is mounted
+  ansible.posix.mount:
+    path: "{{ external_drive_path }}"
+    src: UUID="{{ external_drive_uuid }}"
+    fstype: "{{ external_drive_fstype }}"
+    state: mounted
+
+- name: Ensure docker folders exist on external drive
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0755'
+  with_items:
+    - "{{ external_drive_path }}/docker/data"
+    - "{{ external_drive_path }}/docker/appdata"
+
+- name: Symlink data and appdata to external drive
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ docker_user }}"
+    group: docker
+    state: link
+    force: yes
+  loop:
+    - {src: "{{ external_drive_path }}/docker/data", dest: "{{ docker_data_path }}"}
+    - {src: "{{ external_drive_path }}/docker/appdata", dest: "{{ docker_appdata_path }}"}

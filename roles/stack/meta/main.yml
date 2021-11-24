@@ -1,0 +1,13 @@
+---
+dependencies: []
+
+galaxy_info:
+  role_name: stack
+  author: xerifeazeitona
+  description: Docker Home Server
+  license: GPLv3
+  min_ansible_version: 2.9
+  platforms:
+    - name: Fedora
+      versions:
+        - all

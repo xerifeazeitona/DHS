@@ -1,0 +1,42 @@
+---
+- name: Update the whole system
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_cache: yes
+
+- name: Install the automatic updates package
+  ansible.builtin.dnf:
+    name: dnf-automatic
+    state: present
+
+- name: Set motd as target to display package update messages
+  ansible.builtin.lineinfile:
+    path: "/etc/dnf/automatic.conf"
+    regexp: '^emit_via'
+    line: emit_via = motd
+
+- name: Ensure the automatic updates service is running and enabled on boot
+  ansible.builtin.systemd:
+    name: dnf-automatic.timer
+    state: started
+    enabled: yes
+
+- name: Install extra packages and applications
+  ansible.builtin.dnf:
+    name: "{{ extra_packages }}"
+    state: present
+
+- name: Remove nano-default-editor
+  ansible.builtin.dnf:
+    name: nano-default-editor
+    state: absent
+
+- name: Set vim as default editor
+  ansible.builtin.dnf:
+    name: vim-default-editor
+    state: present
+
+- name: Autoremove unneded packages installed as dependencies
+  ansible.builtin.dnf:
+    autoremove: yes

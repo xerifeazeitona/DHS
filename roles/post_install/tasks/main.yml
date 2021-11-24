@@ -1,0 +1,17 @@
+---
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ hostname }}.{{ domain }}"
+    use: systemd
+
+- name: Configure DNF flags
+  include: dnf_flags.yml
+
+- name: Repository configuration
+  include: repo_setup.yml
+
+- name: Install extra packages and update to latest
+  include: packages.yml
+
+- name: Setup user, configuration files and aliases
+  include: user.yml

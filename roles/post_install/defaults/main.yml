@@ -1,0 +1,13 @@
+---
+hostname: fedora
+domain: example.com
+
+user_name: tux
+user_pass: "{{ 'passwordgoeshere' | password_hash('sha512') }}"
+user_groups: wheel
+
+extra_packages:
+  - tmux
+  - vim-enhanced
+  - xclip
+  - xorg-x11-xauth

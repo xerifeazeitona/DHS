@@ -1,0 +1,42 @@
+---
+# Enable RPM Fusion repos
+- name: Add RPM Fusion GPG keys
+  ansible.builtin.rpm_key:
+    key: "{{ item }}"
+    state: present
+  with_items:
+    - https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-free-fedora-2020
+    - https://rpmfusion.org/keys?action=AttachFile&do=get&target=RPM-GPG-KEY-rpmfusion-nonfree-fedora-2020
+
+- name: Enable RPM Fusion (free and nonfree) repos
+  ansible.builtin.dnf:
+    name:
+      - "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+      - "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    state: present
+
+# Disable unnecessary repos and machine counting
+- name: Disable unwanted repos
+  ansible.builtin.lineinfile:
+    path: "/etc/yum.repos.d/{{ item }}"
+    regexp: '^enabled=1'
+    line: enabled=0
+  with_items:
+    - fedora-updates-modular.repo
+    - fedora-modular.repo
+    - fedora-updates-testing-modular.repo
+    - rpmfusion-free-updates-testing.repo
+    - fedora-cisco-openh264.repo
+
+- name: Get a list of .repo files
+  ansible.builtin.find:
+    paths: /etc/yum.repos.d
+    patterns: "*.repo"
+  register: repo_list
+
+- name: Disable machine counting for all repos
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: '^countme=1'
+    replace: 'countme=0'
+  with_items: "{{ repo_list.files }}"

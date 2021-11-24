@@ -1,0 +1,9 @@
+---
+http:
+  middlewares:
+    chain-auth:
+      chain:
+        middlewares:
+          - mw-rate-limit
+          - mw-secure-headers
+          - mw-authelia

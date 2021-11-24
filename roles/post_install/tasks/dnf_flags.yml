@@ -1,0 +1,17 @@
+---
+# Configure DNF flags
+- name: Enable DNF deltarpm
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/dnf.conf
+    regexp: '^deltarpm='
+    line: deltarpm=true
+
+- name: Enable DNF fastestmirror
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: fastestmirror=true
+
+- name: Increase DNF max_parallel_downloads to 10
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/dnf.conf
+    line: max_parallel_downloads=10

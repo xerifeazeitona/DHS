@@ -1,0 +1,54 @@
+---
+- name: Ensure traefik folders exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0755'
+  with_items:
+    - "{{ docker_appdata_path }}/{{ traefik_dir }}"
+    - "{{ docker_appdata_path }}/{{ traefik_acme_dir }}"
+    - "{{ docker_appdata_path }}/{{ traefik_rules_dir }}"
+
+- name: Ensure traefik.log exists
+  ansible.builtin.file:
+    path: "{{ docker_appdata_path }}/{{ traefik_dir }}/traefik.log"
+    state: touch
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
+
+- name: Ensure acme.json exists
+  ansible.builtin.file:
+    path: "{{ docker_appdata_path }}/{{ traefik_acme_dir }}/acme.json"
+    state: touch
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0600'
+
+- name: Copy static rules
+  ansible.builtin.copy:
+    src: "files/traefik/rules/{{ item }}"
+    dest: "{{ docker_appdata_path }}/{{ traefik_rules_dir }}/{{ item }}"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
+  with_items:
+    - chain-auth.yml
+    - chain-nc.yml
+    - chain-no-auth.yml
+    - mw-rate-limit.yml
+    - st-insecure.yml
+
+- name: Copy dynamic rules
+  ansible.builtin.template:
+    src: "templates/traefik/rules/{{ item }}.j2"
+    dest: "{{ docker_appdata_path }}/{{ traefik_rules_dir }}/{{ item }}"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
+  with_items:
+    - mw-authelia.yml
+    - mw-nextcloud.yml
+    - mw-secure-headers.yml

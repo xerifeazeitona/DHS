@@ -1,0 +1,85 @@
+---
+# It's highly recommended to use vars/main.yml to override sensitive data and then encrypt it instead of leaving secrets in cleartext.
+
+# External drive configuration
+use_external_drive: false
+external_drive_path: unused
+external_drive_uuid: unused
+external_drive_fstype: unused
+
+# Docker configuration
+docker_user: tux
+docker_pass: "{{ 'cleartextpassword' | password_hash('sha512') }}"
+docker_root_path: /opt/docker
+docker_data_path: "{{ docker_root_path }}/data"
+docker_appdata_path: "{{ docker_root_path }}/appdata"
+docker_secrets_path: "{{ docker_root_path }}/secrets"
+
+# Environment variables
+timezone: Antarctica/South_Pole
+domain_name: example.com
+email: email@example.com
+
+# Traefik configuration
+traefik_dir: traefik
+traefik_acme_dir: "{{ traefik_dir }}/letsencrypt"
+traefik_rules_dir: "{{ traefik_dir }}/rules"
+
+# Authelia configuration
+authelia_dir: authelia
+authelia_db_name: authelia
+authelia_db_username: authelia
+authelia_user_name: tux
+authelia_user_displayname: Senor Penguin
+authelia_user_password_hash: "$argon2id$v=19$m=65536,t=1,p=8$NHJHamZPSGdRcmJsRHM5eQ$U0dztF6afvWRA6f6+D9j2QRm1OqB2UNA+hZG3OaJGQg"  # nootnoot
+# docker run authelia/authelia:latest authelia hash-password YOUR_PASSWORD
+authelia_user_email: email@example.com
+
+# Compose file
+traefik_subnet: 192.168.10.0/24
+socket_proxy_subnet: 192.168.11.0/24
+
+duckdns_domain: example
+duckdns_dir: duckdns
+
+traefik_version: brie
+traefik_static_ip: 192.168.10.254
+traefik_subdomain_name: traefik
+
+socket_proxy_static_ip: 192.168.11.254
+
+authelia_version: 4.32.2
+authelia_subdomain_name: authelia
+
+heimdall_dir: heimdall
+
+plex_dir: plex
+plex_static_ip: 192.168.10.150
+plex_version: latest
+plex_subdomain_name: plex
+media_folder_path: /mnt/storage/media
+plex_media_folders:
+  - tvshows
+  - movies
+  - music
+
+nextcloud_dir: nextcloud
+nextcloud_subdomain_name: nextcloud
+
+unifi_controller_dir: unifi
+unifi_controller_subdomain_name: unifi
+
+# Secrets
+duckdns_token: your_duckdns_token
+authelia_jwt_secret: insecure_jwt_secret
+authelia_mysql_database: authelia_database
+authelia_mysql_root_password: insecure_mysql_root_pass
+authelia_mysql_user: authelia_user
+authelia_session_redis_password: insecure_redis_password
+authelia_session_secret: insecure_session_secret
+authelia_storage_mysql_password: insecure_storage_password
+nextcloud_db_database: nextcloud_database
+nextcloud_db_root_password: insecure_database_root_pass
+nextcloud_db_user: nextcloud_user
+nextcloud_db_user_password: insecure_database_user_pass
+nextcloud_redis_password: insecure_redis_password

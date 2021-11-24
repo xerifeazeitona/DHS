@@ -1,0 +1,31 @@
+---
+http:
+  middlewares:
+    nc-mw-secure-headers:
+      headers:
+        accessControlMaxAge: 100
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "no-referrer"
+        PermissionsPolicy: "camera=(), geolocation=(), microphone=(), payment=(), usb=(), xr-spatial-tracking=()"
+        customResponseHeaders:
+          X-Robots-Tag: "none"
+          server: ""
+
+### This section redirects requests for Nextcloud calendar and contacts service discovery
+### source: https://docs.nextcloud.com/server/21/admin_manual/issues/general_troubleshooting.html#service-discovery
+    nc-redirect-dav:
+      redirectRegex:
+        permanent: true
+        regex: "https://(.*)/.well-known/(card|cal)dav"
+        replacement: "https://${1}/remote.php/dav/"
+    nc-redirect-other:
+      redirectRegex:
+        permanent: true
+        regex: "https://{{ nextcloud_subdomain_name }}.{{ domain_name }}/.well-known/(.*)"
+        replacement: "https://{{ nextcloud_subdomain_name }}.{{ domain_name }}/index.php/.well-known/${1}"

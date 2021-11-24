@@ -1,0 +1,8 @@
+---
+http:
+  middlewares:
+    chain-no-auth:
+      chain:
+        middlewares:
+          - mw-rate-limit
+          - mw-secure-headers

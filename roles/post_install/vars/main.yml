@@ -1,0 +1,20 @@
+---
+# The contents of this file will override whatever is defined in the defaults.
+# If you want to use any kind of web based source control like GitHub, make sure to encrypt this file with ansible-vault encrypt main.yml or your credentials will be public.
+
+#hostname: home-server
+#domain: example-domain.duckdns.org
+
+#user_name: your_user
+#user_pass: "{{ 'your_pass' | password_hash('sha512') }}"
+#user_groups: wheel
+
+#extra_packages:
+#  - cmatrix
+#  - fuse-sshfs
+#  - git
+#  - htop
+#  - tmux
+#  - vim-enhanced
+#  - xclip
+#  - xorg-x11-xauth

@@ -1,0 +1,457 @@
+---
+version: '3.9'
+
+### NETWORKS ###
+networks:
+  traefik_proxy:
+    name: traefik_proxy
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{ traefik_subnet }}
+  default:
+    driver: bridge
+  socket_proxy:
+    name: socket_proxy
+    driver: bridge
+    ipam:
+      config:
+       - subnet: {{ socket_proxy_subnet }}
+  authelia_backend:
+    name: authelia_backend
+    driver: bridge
+  nextcloud_backend:
+    name: nextcloud_backend
+    driver: bridge
+
+### SECRETS ###
+secrets:
+  duckdns_token:
+    file: $SECRETSDIR/duckdns_token.secret
+  authelia_jwt_secret:
+    file: $SECRETSDIR/authelia_jwt_secret.secret
+  authelia_mysql_database:
+    file: $SECRETSDIR/authelia_mysql_database.secret
+  authelia_mysql_root_password:
+    file: $SECRETSDIR/authelia_mysql_root_password.secret
+  authelia_mysql_user:
+    file: $SECRETSDIR/authelia_mysql_user.secret
+  authelia_session_redis_password:
+    file: $SECRETSDIR/authelia_session_redis_password.secret
+  authelia_session_secret:
+    file: $SECRETSDIR/authelia_session_secret.secret
+  authelia_storage_mysql_password:
+    file: $SECRETSDIR/authelia_storage_mysql_password.secret
+  nextcloud_db_database:
+    file: $SECRETSDIR/nextcloud_db_database.secret
+  nextcloud_db_root_password:
+    file: $SECRETSDIR/nextcloud_db_root_password.secret
+  nextcloud_db_user:
+    file: $SECRETSDIR/nextcloud_db_user.secret
+  nextcloud_db_user_password:
+    file: $SECRETSDIR/nextcloud_db_user_password.secret
+  nextcloud_redis_password:
+    file: $SECRETSDIR/nextcloud_redis_password.secret
+
+### SERVICES ###
+services:
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns
+    container_name: duckdns
+    restart: unless-stopped
+    networks:
+      - default
+    volumes:
+      - $APPDATADIR/{{ duckdns_dir }}:/config 
+    secrets:
+      - duckdns_token
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - SUBDOMAINS={{ duckdns_domain }}
+      - FILE__TOKEN=/run/secrets/duckdns_token
+      - LOG_FILE=true 
+
+  # Traefik 2 - Reverse Proxy
+  traefik:
+    image: traefik:{{ traefik_version }}
+    container_name: traefik
+    restart: unless-stopped
+    # CLI arguments
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.traefik.address=:8080
+      - --api=true
+      #- --api.insecure=true
+      # - --serverstransport.insecureskipverify=true # for external services with self signed certs
+      - --log=true
+      - --log.level=INFO # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --accesslog=true
+      - --accesslog.filepath=/traefik.log
+      - --accesslog.bufferingsize=100
+      - --accesslog.filters.statuscodes=400-499
+      - --providers.docker=true
+      - --providers.docker.endpoint=tcp://socket-proxy:2375
+      - --providers.docker.defaultrule=Host(`{% raw %}{{ index .Labels "com.docker.compose.service" }}{% endraw %}.$DOMAINNAME`)
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=traefik_proxy
+      - --providers.docker.swarmmode=false
+      - --providers.file.directory=/rules # Load dynamic configuration from .toml or .yml files in a directory
+      - --providers.file.watch=true # Only works on top level files in the rules folder
+      - --certificatesresolvers.LE-duckdns.acme.dnschallenge=true
+      - --certificatesresolvers.LE-duckdns.acme.dnschallenge.provider=duckdns
+      #- --certificatesresolvers.LE-duckdns.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory  # LetsEncrypt Staging Server - uncomment when testing
+      - --certificatesresolvers.LE-duckdns.acme.email=$MY_EMAIL
+      - --certificatesresolvers.LE-duckdns.acme.storage=/acme.json
+      - --certificatesResolvers.LE-duckdns.acme.dnsChallenge.delayBeforeCheck=90 # To delay DNS check and reduce LE hitrate
+    networks:
+      traefik_proxy:
+        ipv4_address: {{ traefik_static_ip }} 
+      socket_proxy:
+    depends_on:
+      - socket-proxy
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - mode: host
+        target: 80
+        published: 80
+        protocol: tcp
+      - mode: host
+        target: 443
+        published: 443
+        protocol: tcp
+    volumes:
+      - $APPDATADIR/{{ traefik_rules_dir }}:/rules
+      - $APPDATADIR/{{ traefik_acme_dir }}/acme.json:/acme.json
+      - $APPDATADIR/{{ traefik_dir }}/traefik.log:/traefik.log
+    secrets:
+      - duckdns_token
+    environment:
+      - DUCKDNS_TOKEN_FILE=/run/secrets/duckdns_token
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-rtr.rule=Host(`{{ traefik_subdomain_name }}.$DOMAINNAME`)"
+      - "traefik.http.routers.traefik-rtr.entrypoints=websecure"
+      - "traefik.http.routers.traefik-rtr.tls=true"
+      #- "traefik.http.routers.traefik-rtr.tls.certresolver=LE-duckdns" # Comment out this line after first run of traefik to force the use of wildcard certs
+      - "traefik.http.routers.traefik-rtr.tls.domains[0].main=$DOMAINNAME"
+      - "traefik.http.routers.traefik-rtr.tls.domains[0].sans=*.$DOMAINNAME"
+      - "traefik.http.routers.traefik-rtr.service=api@internal"
+      - "traefik.http.routers.traefik-rtr.middlewares=chain-auth@file"
+  # Docker Socket Proxy - Security Enchanced Proxy for Docker Socket
+  socket-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy
+    container_name: socket-proxy
+    restart: always
+    networks:
+      socket_proxy:
+        ipv4_address: {{ socket_proxy_static_ip }} 
+    privileged: true
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 2375
+        published: 2375
+        protocol: tcp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - LOG_LEVEL=info # debug,info,notice,warning,err,crit,alert,emerg
+      ## Variables match the URL prefix (i.e. AUTH blocks access to /auth/* parts of the API, etc.).
+      # 0 to revoke access.
+      # 1 to grant access.
+      ## Granted by Default
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+      ## Revoked by Default
+      # Security critical
+      - AUTH=0
+      - SECRETS=0
+      - POST=0
+      # Not always needed
+      - BUILD=0
+      - COMMIT=0
+      - CONFIGS=0
+      - CONTAINERS=1 # Traefik
+      - DISTRIBUTION=0
+      - EXEC=0
+      - IMAGES=0
+      - INFO=0
+      - NETWORKS=1 # Traefik
+      - NODES=0
+      - PLUGINS=0
+      - SERVICES=1 # Traefik
+      - SESSION=0
+      - SWARM=0
+      - SYSTEM=0
+      - TASKS=1 # Traefik
+      - VOLUMES=0
+
+  # Authelia (Lite) - Self-Hosted Single Sign-On and Two-Factor Authentication
+  authelia:
+    image: ghcr.io/authelia/authelia:{{ authelia_version }} # check for breakage before updating https://github.com/authelia/authelia/releases
+    container_name: authelia
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+      - authelia_backend
+    depends_on:
+      - authelia_db
+      - authelia_redis
+    volumes:
+      - $APPDATADIR/{{ authelia_dir }}:/config
+    secrets:
+      - authelia_jwt_secret
+      - authelia_session_secret
+      - authelia_session_redis_password
+      - authelia_storage_mysql_password
+    environment:
+      - TZ=$TZ
+      - AUTHELIA_JWT_SECRET_FILE=/run/secrets/authelia_jwt_secret
+      - AUTHELIA_SESSION_SECRET_FILE=/run/secrets/authelia_session_secret
+      - AUTHELIA_SESSION_REDIS_PASSWORD_FILE=/run/secrets/authelia_session_redis_password
+      - AUTHELIA_STORAGE_MYSQL_PASSWORD_FILE=/run/secrets/authelia_storage_mysql_password
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia-rtr.rule=Host(`{{ authelia_subdomain_name }}.$DOMAINNAME`)"
+      - "traefik.http.routers.authelia-rtr.entrypoints=websecure"
+      - "traefik.http.routers.authelia-rtr.tls=true"
+      - "traefik.http.routers.authelia-rtr.middlewares=chain-auth@file"
+
+  # Redis (Authelia) - Key-value Store
+  authelia_redis:
+    image: redis
+    container_name: authelia_redis
+    restart: unless-stopped
+    networks:
+      - authelia_backend
+    expose:
+      - "6379"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $APPDATADIR/{{ authelia_dir }}_redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - authelia_session_redis_password
+    environment:
+      - REDIS_PASS_FILE=/run/secrets/authelia_session_redis_password
+    command: [
+      "bash", "-c",
+      '
+      docker-entrypoint.sh
+      --appendonly yes --requirepass "$$(cat $$REDIS_PASS_FILE)" --maxmemory 512mb --maxmemory-policy allkeys-lru
+      '
+    ]
+
+  # MariaDB (Authelia) - MySQL Database
+  authelia_db:
+    image: lscr.io/linuxserver/mariadb
+    container_name: authelia_db
+    restart: unless-stopped
+    networks:
+      - authelia_backend
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "3306"
+    volumes:
+      - $APPDATADIR/{{ authelia_dir }}_db:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/authelia_mysql_root_password
+      - FILE__MYSQL_DATABASE=/run/secrets/authelia_mysql_database
+      - FILE__MYSQL_USER=/run/secrets/authelia_mysql_user
+      - FILE__MYSQL_PASSWORD=/run/secrets/authelia_storage_mysql_password
+    secrets:
+      - authelia_mysql_root_password
+      - authelia_mysql_database
+      - authelia_mysql_user
+      - authelia_storage_mysql_password
+
+  # Heimdall - Unified Application Dashboard
+  heimdall:
+    image: lscr.io/linuxserver/heimdall
+    container_name: heimdall
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $APPDATADIR/{{ heimdall_dir }}:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.heimdall-rtr.rule=Host(`$DOMAINNAME`, `www.$DOMAINNAME`)"
+      - "traefik.http.routers.heimdall-rtr.entrypoints=websecure"
+      - "traefik.http.routers.heimdall-rtr.tls=true"
+      - "traefik.http.routers.heimdall-rtr.middlewares=chain-auth@file"
+
+  # Plex - Media Server
+  plex:
+    image: lscr.io/linuxserver/plex
+    container_name: plex
+    restart: unless-stopped
+    networks:
+      traefik_proxy:
+        ipv4_address: {{ plex_static_ip }}
+    devices:
+      - /dev/dri:/dev/dri # for hardware transcoding
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $APPDATADIR/{{ plex_dir }}/config:/config
+      - $DATADIR/{{ plex_dir }}/data/Cache:/config/Library/Application Support/Plex Media Server/Cache
+      - $DATADIR/{{ plex_dir }}/data/Metadata:/config/Library/Application Support/Plex Media Server/Metadata
+      - $DATADIR/{{ plex_dir }}/data/Media:/config/Library/Application Support/Plex Media Server/Media
+{% for folder in plex_media_folders %}
+      - {{ media_folder_path }}/{{ folder }}:/{{ folder }}:ro
+{% endfor %}
+    environment:
+      - TZ=$TZ
+      - PUID=$PUID
+      - PGID=$PGID
+      - VERSION={{ plex_version }}
+      - UMASK=022
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.plex-rtr.rule=Host(`{{ plex_subdomain_name }}.$DOMAINNAME`)"
+      - "traefik.http.routers.plex-rtr.entrypoints=websecure"
+      - "traefik.http.routers.plex-rtr.tls=true"
+      - "traefik.http.routers.plex-rtr.middlewares=mw-rate-limit@file"
+      - "traefik.http.routers.plex-rtr.service=plex-svc"
+      - "traefik.http.services.plex-svc.loadbalancer.server.port=32400"
+
+  # NextCloud – Your Own Cloud Storage
+  nextcloud:
+    image: lscr.io/linuxserver/nextcloud
+    container_name: nextcloud
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+      - nextcloud_backend
+    depends_on:
+      - nextcloud_db
+      - nextcloud_redis
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $APPDATADIR/{{ nextcloud_dir }}/config:/config
+      - $DATADIR/{{ nextcloud_dir }}/data:/data
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nextcloud-rtr.rule=Host(`{{ nextcloud_subdomain_name }}.$DOMAINNAME`)"
+      - "traefik.http.routers.nextcloud-rtr.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud-rtr.tls=true"
+      - "traefik.http.routers.nextcloud-rtr.middlewares=chain-nc@file"
+        
+  # Redis (Nextcloud) - Key-value Store
+  nextcloud_redis:
+    image: redis
+    container_name: nextcloud_redis
+    restart: unless-stopped
+    networks:
+      - nextcloud_backend
+    expose:
+      - "6379"
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - $APPDATADIR/{{ nextcloud_dir }}_redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - nextcloud_redis_password
+    environment:
+      - REDIS_PASS_FILE=/run/secrets/nextcloud_redis_password
+    command: [
+      "bash", "-c",
+      '
+      docker-entrypoint.sh
+      --appendonly yes --requirepass "$$(cat $$REDIS_PASS_FILE)" --maxmemory 512mb --maxmemory-policy allkeys-lru
+      '
+    ]
+
+  # MariaDB (Nextcloud) - MySQL Database
+  nextcloud_db:
+    image: lscr.io/linuxserver/mariadb
+    container_name: nextcloud_db
+    restart: unless-stopped
+    networks:
+      - nextcloud_backend
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - "3306"
+    volumes:
+      - $APPDATADIR/{{ nextcloud_dir }}_db:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+      - TZ=$TZ
+      - FILE__MYSQL_ROOT_PASSWORD=/run/secrets/nextcloud_db_root_password
+      - FILE__MYSQL_DATABASE=/run/secrets/nextcloud_db_database
+      - FILE__MYSQL_USER=/run/secrets/nextcloud_db_user
+      - FILE__MYSQL_PASSWORD=/run/secrets/nextcloud_db_user_password
+    secrets:
+      - nextcloud_db_root_password
+      - nextcloud_db_database
+      - nextcloud_db_user
+      - nextcloud_db_user_password
+
+  # unifi - UniFi Controller Software
+  unifi-controller:
+    image: lscr.io/linuxserver/unifi-controller
+    container_name: unifi-controller
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - mode: ingress
+        target: 3478
+        published: 3478
+        protocol: udp
+      - mode: ingress
+        target: 10001
+        published: 10001
+        protocol: udp
+      - mode: ingress
+        target: 8080
+        published: 38080
+        protocol: tcp
+    volumes:
+      - $APPDATADIR/{{ unifi_controller_dir }}:/config
+    environment:
+      - PUID=$PUID
+      - PGID=$PGID
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.unifi-rtr.rule=Host(`{{ unifi_controller_subdomain_name }}.$DOMAINNAME`)"
+      - "traefik.http.routers.unifi-rtr.entrypoints=websecure"
+      - "traefik.http.routers.unifi-rtr.tls=true"
+      - "traefik.http.routers.unifi-rtr.middlewares=chain-no-auth@file"
+      - "traefik.http.routers.unifi-rtr.service=unifi-svc"
+      - "traefik.http.services.unifi-svc.loadbalancer.server.scheme=https"
+      - "traefik.http.services.unifi-svc.loadbalancer.server.port=8443"
+      - "traefik.http.services.unifi-svc.loadbalancer.serverstransport=insecuretransport@file"
+...

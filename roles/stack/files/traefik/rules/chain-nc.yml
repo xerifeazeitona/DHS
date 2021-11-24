@@ -1,0 +1,10 @@
+---
+http:
+  middlewares:
+    chain-nc:
+      chain:
+        middlewares:
+          - mw-rate-limit
+          - nc-mw-secure-headers
+          - nc-redirect-dav
+          - nc-redirect-other

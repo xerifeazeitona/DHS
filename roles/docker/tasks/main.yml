@@ -1,0 +1,6 @@
+---
+- name: Install Docker
+  include: docker.yml
+
+- name: Install docker-compose
+  include: docker-compose.yml

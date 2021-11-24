@@ -1,0 +1,27 @@
+---
+- name: Ensure authelia directory exists
+  ansible.builtin.file:
+    path: "{{ docker_appdata_path }}/{{ authelia_dir }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0755'
+
+- name: Ensure notification file exists
+  ansible.builtin.file:
+    path: "{{ docker_appdata_path }}/{{ authelia_dir }}/notification.txt"
+    state: touch
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
+
+- name: Copy authelia configuration files
+  ansible.builtin.template:
+    src: "templates/authelia/{{ item }}.yml.j2"
+    dest: "{{ docker_appdata_path }}/{{ authelia_dir }}/{{ item }}.yml"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
+  with_items:
+    - configuration
+    - users_database

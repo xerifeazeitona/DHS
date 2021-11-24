@@ -1,0 +1,64 @@
+---
+- name: Create docker user
+  ansible.builtin.user:
+    name: "{{ docker_user }}"
+    shell: /bin/bash
+    state: present
+    password: "{{ docker_pass }}"
+    update_password: on_create
+    groups: docker
+    append: yes
+    generate_ssh_key: true
+    ssh_key_bits: 4096
+  register: dockeruser
+
+- name: Get docker group ID
+  ansible.builtin.group:
+    name: docker
+  register: dockergroup
+
+- name: Check if docker has already been deployed
+  stat:
+    path: "{{ docker_root_path }}/.env"
+  register: docker_environment
+
+- name: Configure docker directories
+  block:
+    - name: Ensure docker root and secrets folders exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        recurse: yes
+        owner: "{{ docker_user }}"
+        group: docker
+        mode: '0755'
+      with_items:
+        - "{{ docker_root_path }}"
+        - "{{ docker_secrets_path }}"
+
+    - name: Setup local data and appdata folders
+      include: setup-local-folders.yml
+      when: not use_external_drive
+
+    - name: Setup data and appdata folders on external drive
+      include: setup-external-folders.yml
+      when: use_external_drive | bool
+
+    - name: Set default ACL for docker group on docker root folder
+      ansible.posix.acl:
+        path: "{{ docker_root_path }}"
+        entity: docker
+        etype: group
+        permissions: rwx
+        default: yes
+        recursive: yes
+        state: present
+  when: not docker_environment.stat.exists
+
+- name: Copy env file
+  template:
+    src: templates/.env.j2
+    dest: "{{ docker_root_path }}/.env"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'

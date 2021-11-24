@@ -1,0 +1,24 @@
+---
+http:
+  middlewares:
+    mw-secure-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+        accessControlMaxAge: 100
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        customFrameOptionsValue: "allow-from https:{{ domain_name }}" #CSP takes care of this but we're not using it
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "same-origin"
+        PermissionsPolicy: "camera=(), geolocation=(), microphone=(), payment=(), usb=(), xr-spatial-tracking=()"
+        customResponseHeaders:
+          X-Robots-Tag: "none,noarchive,nosnippet,notranslate,noimageindex,"
+          server: ""

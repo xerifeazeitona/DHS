@@ -1,0 +1,30 @@
+---
+- name: Copy secrets
+  ansible.builtin.template:
+    src: "templates/secrets/{{ item }}.secret.j2"
+    dest: "{{ docker_secrets_path }}/{{ item }}.secret"
+    owner: root
+    group: root
+    mode: '0640'
+  with_items:
+    - duckdns_token
+    - authelia_jwt_secret
+    - authelia_mysql_database
+    - authelia_mysql_root_password
+    - authelia_mysql_user
+    - authelia_session_redis_password
+    - authelia_session_secret
+    - authelia_storage_mysql_password
+    - nextcloud_db_database
+    - nextcloud_db_root_password
+    - nextcloud_db_user
+    - nextcloud_db_user_password
+    - nextcloud_redis_password
+
+- name: Copy compose file
+  ansible.builtin.template:
+    src: templates/docker-compose.yml.j2
+    dest: "{{ docker_root_path }}/docker-compose.yml"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: '0644'
